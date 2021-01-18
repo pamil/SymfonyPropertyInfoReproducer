@@ -1,0 +1,44 @@
+name: Build
+
+on:
+    workflow_dispatch: ~ # Allow for manual dispatching
+    push: ~
+    pull_request: ~
+
+jobs:
+    build:
+        name: "Symfony ${{ matrix.symfony }}"
+        runs-on: ubuntu-20.04
+
+        strategy:
+            matrix:
+                php: [7.4]
+                symfony: [4.4.*, 5.0.*, 5.1.*, 5.2.*]
+
+        steps:
+            -   uses: actions/checkout@v2
+
+            -   name: Setup PHP
+                uses: shivammathur/setup-php@v2
+                with:
+                    php-version: "${{ matrix.php }}"
+                    coverage: none
+
+            -   name: Get Composer cache directory
+                id: composer-cache
+                run: echo "::set-output name=dir::$(composer config cache-files-dir)"
+
+            -   name: Cache Composer
+                uses: actions/cache@v2
+                with:
+                    path: ${{ steps.composer-cache.outputs.dir }}
+                    key: ${{ runner.os }}-php-${{ matrix.php }}-composer-${{ hashFiles('**/composer.json **/composer.lock') }}
+                    restore-keys: |
+                        ${{ runner.os }}-php-${{ matrix.php }}-composer-
+
+            -   name: Install dependencies
+                run: |
+                    composer require symfony/property-info:${{ matrix.symfony }}
+
+            -   name: Run tests
+                run: php test.php
